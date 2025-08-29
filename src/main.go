@@ -1,28 +1,28 @@
 package main
 
-import(
-	"fmt",
-	"net/url",
-	"net/http/httputil",
+import (
+	"fmt"
+	"net/http"
+
+	"loadbalancer_go/src/balancer"
+	"loadbalancer_go/src/server"
 )
 
-type simpleServer struct{
-	addr string
-	proxy httputil.ReverseProxy
-}
-
-func newSimpleServer(addr string) *simpleServer{
-  serverUrl,err := url.Parse(addr)
-	handleErr(err)
-	return &simpleserver{
-		addr: addr,
-		proxy: *httputil.NewSingleHostReverseProxy(serverUrl),
+func main() {
+	servers := []server.Server{
+		server.NewSimpleServer("https://www.facebook.com"),
+		server.NewSimpleServer("https://www.bing.com"),
+		server.NewSimpleServer("https://www.duckduckgo.com"),
 	}
-}
 
-func handleErr(err error){
-	if err != nil{
-		fmt.Printf("Error: %v/n", err)
+	lb := balancer.NewLoadBalancer("8000", servers)
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		lb.ServeProxy(w, r)
+	})
+
+	fmt.Printf("Load balancer started on port %s\n", lb.Port())
+	if err := http.ListenAndServe(":"+lb.Port(), nil); err != nil {
+		fmt.Println("Error:", err)
 	}
-	os.Exit(1)
 }
